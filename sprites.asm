@@ -124,25 +124,25 @@ draw_sprite:
 	move $s2, $a0 #guardando x em $s2
 	move $s3, $a1 #guardando y em $s3
 	la $s0, sprites
-	mul $t0, $a2, 49 # 49*indice, offset para trabalhar com um sprite especÌfico
+	mul $t0, $a2, 49 # 49*indice, offset para trabalhar com um sprite espec√≠fico
 	add $s0, $t0, $s0 # & sprites [49*indice]
 	
-	li $t1, 0  # vari·vel adjacente
+	li $t1, 0  # vari√°vel adjacente
 	la $s1, colors #tabela de cores
 	
 draw:	
 	bge $t1, SPRITE_SIZE, draw_end
-	lbu $t2, 0($s0) #pega o valor correspondente ao Ìndice da tabela de cores
-	sll $t2, $t2, 2 #multiplica por 4 pq a tabela de cores È um vetor de word
+	lbu $t2, 0($s0) #pega o valor correspondente ao √≠ndice da tabela de cores
+	sll $t2, $t2, 2 #multiplica por 4 pq a tabela de cores √© um vetor de word
 	add $t2, $t2, $s1 #&colors[i]
 	lw $a2, 0($t2) # pega a cor pra jogar no set_pixel
 	div $t3, $t1, 7 #$t3 -> offset para y
 	mfhi $t4        #$t4 -> offset para x (resto)
-	add $a0, $s2, $t4 #posiÁ„o de x em pixel scale
-	add $a1, $s3, $t3 #posiÁ„o de y em pixel scale
+	add $a0, $s2, $t4 #posi√ß√£o de x em pixel scale
+	add $a1, $s3, $t3 #posi√ß√£o de y em pixel scale
 	
 	jal set_pixel
-	addi $t1, $t1, 1 #incrementando a vari·vel adjacente 
+	addi $t1, $t1, 1 #incrementando a vari√°vel adjacente 
 	addi $s0, $s0, 1
 	b draw
 	
@@ -162,7 +162,7 @@ set_pixel:
    add $a0, $a0, $a1 # x + y*256
    sll $a0, $a0, 2 # 4*( x + y*256 )
    add $a0, $a0, $t0 # &(pixel + 4*( x + y*256)
-   sw  $a2, 0($a0) # joga a cor pro endereÁo
+   sw  $a2, 0($a0) # joga a cor pro endere√ßo
    jr  $ra
 
 #Pilha
@@ -214,5 +214,3 @@ checkWallExit:
 	lw $ra, 28($sp)
 	
 	jr $ra
-	
-#int returnId(int x, int y) {
