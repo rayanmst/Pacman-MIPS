@@ -7,7 +7,7 @@ A pacman project made in assembly using MARS IDE in Instituto Federal de Educaç
 
 #### Controls
 > Pacman is controlled by pressing WASD in keyboard
->>W - Up
->>A - Left
->>S - Down
->>D - Right
+>>W - Up,
+>>A - Left,
+>>S - Down,
+>>D - Right.
