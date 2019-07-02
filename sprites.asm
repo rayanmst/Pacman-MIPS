@@ -165,6 +165,7 @@ set_pixel:
    sw  $a2, 0($a0) # joga a cor pro endereço
    jr  $ra
 
+#checkWall(x, y, *grid)
 #Pilha
 #|-------| 32($sp)
 #|  $ra  |
@@ -193,7 +194,6 @@ checkWall:
 	sw $s2, 20($sp)
 	sw $ra, 28($sp)
 	
-	li $t0, 5
 	div $t1, $a0, 7	  #gridPosX
 	div $t2, $a1, 7	  #gridPosY
 	mul $t1, $t1, 35  #Offset em x
@@ -201,7 +201,7 @@ checkWall:
 	add $t1, $t1, $a2 #gridTable[gridArrayPos]
 	lbu $t2, 0($t1)	  #$t2 = gridTable[gridArrayPos]
 	subi $t2, $t2, 64
-	bge $t2, $t0, checkWallIfFalse
+	bge $t2, 5, checkWallIfFalse
 checkWallIfTrue:
 	li $v0, 0
 	j checkWallExit
@@ -214,3 +214,20 @@ checkWallExit:
 	lw $ra, 28($sp)
 	
 	jr $ra
+
+
+#void movePac(int X, int Y, char* grid)
+movePac:
+	
+	
+	la $s0, movect
+	move $s1, $a0
+	move $s2, $a1
+	move $s3, $a2
+	addi $a0, $a0, 7
+	addi $a1, $a1, 7
+	jal checkWall
+	bge $v0, 1, movePac_if_false
+movePac_if_true:
+	
+	
