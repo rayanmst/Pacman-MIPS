@@ -1,5 +1,8 @@
-.include "graphics.inc"
-
+﻿.include "graphics.inc"
+.include "interrupt.inc"
+.include "macros.asm"
+.data
+mov_pacman: animed_sprite(pacman, 3, 140, 119, 0, 0)
 .text
 .globl main
 main:
@@ -8,19 +11,14 @@ main:
     li $a1, 35
     la $a2, grid
     jal draw_grid    
+    
+    la $a0, grid
+    la $a1, mov_pacman
+    jal movePac
+    
     li $v0, 10
     syscall
-	# TESTE DRAW SPRITE
-    #li   $t8,0
-    #li   $t9,0
-    #main2:
-    #move $a0,$t8
-    #move $a1,$t9
-    #li   $a2,3
-    #jal  draw_sprite
-    #addi $t8, $t8, 1
 	
-    #b main2
     
 # draw_grid(width, height, grid_table)
 .globl draw_grid
@@ -166,6 +164,7 @@ set_pixel:
    jr  $ra
 
 #checkWall(x, y, *grid)
+.globl checkWall
 #Pilha
 #|-------| 32($sp)
 #|  $ra  |
@@ -203,10 +202,10 @@ checkWall:
 	subi $t2, $t2, 64
 	bge $t2, 5, checkWallIfFalse
 checkWallIfTrue:
-	li $v0, 0
+	li $v0, 0 	# se n tiver parede, retorna 0
 	j checkWallExit
 checkWallIfFalse:
-	li $v0, 1
+	li $v0, 1	#se tiver parede, retorna 1
 checkWallExit:
 	lw $s0, 12($sp)
 	lw $s1, 16($sp)
@@ -215,19 +214,44 @@ checkWallExit:
 	
 	jr $ra
 
-
-#void movePac(int X, int Y, char* grid)
+.globl movePac
+#void movePac(char* grid, *mov)
 movePac:
-	
-	
-	la $s0, movect
-	move $s1, $a0
-	move $s2, $a1
-	move $s3, $a2
-	addi $a0, $a0, 7
-	addi $a1, $a1, 7
+
+	move $s0, $a0		#grid
+	move $s1, $a1		#mov
+movePac_while_move:
+	lw $s2, 4($s1)		#x	i=0 -> 140
+	lw $s3, 8($s1)		#y	i=0 -> 119
+	bge $s2, 256, movePac_stop
+	bge $s3, 256, movePac_stop
+	lw $s5, 12($s1)		#movX
+	lw $s4, 16($s1)		#movY
+	mul $t0, $s4, 7
+	mul $t1, $s5, 7
+	add $a0, $s2, $t0
+	add $a1, $s3, $t1
+	add $a2, $s0, $0
 	jal checkWall
-	bge $v0, 1, movePac_if_false
-movePac_if_true:
+	bge $v0, 1, movePac_stop
+	li $s6, 0
+movePac_move:
+	bge $s6, 7, movePac_move_end
+	addi, $s6, $s6, 1
+	add $s2, $s2, $s4
+	add $s3, $s3, $s5
+	move $a0, $s3
+	move $a1, $s2
+	lw $a2, 0($s1)
+	jal draw_sprite
+	j movePac_move
+
+movePac_move_end:
+	sw $s2, 4($s1)
+	sw $s3, 8($s1)
+	j movePac_while_move
 	
-	
+movePac_stop:
+	sw $0, 12($s1)
+	sw $0, 16($s1)
+	j movePac_while_move
