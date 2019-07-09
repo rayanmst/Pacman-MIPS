@@ -1,24 +1,86 @@
-﻿.include "graphics.inc"
+.include "graphics.inc"
 .include "interrupt.inc"
-.include "macros.asm"
+.include "macros.inc"
+
 .data
-mov_pacman: animed_sprite(pacman, 3, 140, 119, 0, 0)
-.text
+Pontuacao: .asciiz "\nPontuação:\n"
+buffer(0, 0, movepac)
+sprites(119, 140, 0, 0, 3, pacman)
+
+.text 
 .globl main
 main:
-	# CHAMA DRAW GRID
-    li $a0, 35
-    li $a1, 35
-    la $a2, grid
-    jal draw_grid    
-    
-    la $a0, grid
-    la $a1, mov_pacman
-    jal movePac
-    
-    li $v0, 10
-    syscall
+        #habilitando interrupção no teclado
+        li $t0, 2
+        sw $t0, 0xffff0000
+        
+        #desenha a grid
+	li $a0, GRID_COLS  
+        li $a1, GRID_ROWS 
+        la $a2, grid
+        jal draw_grid
 	
+movingpac:
+	li $v0, 32 #delay
+	li $a0, 50 #50ms 
+	syscall
+	 
+	la $s0, pacman  #sprite
+	la $s1, movepac #buffer
+	la $a2, grid
+	
+
+	lw $s2, 0($s1)  #s2 = movepac.movx
+	lw $s3, 4($s1)  #s1 = movepac.movy
+
+	lw $t1, 0($s0)  #t1 = pacman.posx
+	lw $t2, 4($s0)  #t2 = pacman.posy
+	div $t3, $t1, 7 #t3 = pacman.posx/7 
+	mfhi $t4
+	div $t5, $t2, 7 #t5 = pacman.posy/7 
+	mfhi $t6
+	add $a0, $s2, $t3 #a0 = movepac.movx + pacman.posx/7 
+	add $a1, $s3, $t5 #a1 = movepac.movy + pacman.posy/7 
+	
+	add $t4, $t6, $t4 #checando se o pacman está no meio do sprite
+        bnez $t4, ifmovingpac1
+        jal  check_wall
+        bnez $v0, ifmovingpac1 #checando se é possível mover na direção do buffer
+        sw $s2, 8($s0)  # pacman.movx = movepac.movx
+        sw $s3, 12($s0) # pacman.movy = movepac.movy
+        
+ifmovingpac1:
+	lw $t0, 8($s0)  #t0 = pacman.movx
+	lw $t7, 12($s0)  #t7 = pacman.movy
+
+	lw $t1, 0($s0)  #t1 = pacman.posx
+	lw $t2, 4($s0)  #t2 = pacman.posy
+	div $t3, $t1, 7 #t3 = pacman.posx/7 
+	mfhi $t4
+	div $t5, $t2, 7 #t5 = pacman.posy/7 
+	mfhi $t6
+	
+	add $a0, $t0, $t3 #a0 = pacman.movx + pacman.posx/7 
+	add $a1, $t7, $t5 #a1 = pacman.movy + pacman.posy/7 
+	
+	add $t4, $t6, $t4 #checando se o pacman está no meio do sprite
+	bnez $t4, ifmovingpac2
+	jal check_wall         
+   	bnez $v0, movingpacend  #checando se é possível mover 
+  
+ifmovingpac2:
+	add $a0, $t0, $t1
+	sw $a0, 0($s0) #atualizando pacman.posx
+	add $a1, $t2, $t7
+	sw $a1, 4($s0) #atualizando pacman.posy
+	li $a2, 3
+	jal draw_sprite
+	
+movingpacend:
+
+	j movingpac
+
+ 
     
 # draw_grid(width, height, grid_table)
 .globl draw_grid
@@ -162,14 +224,15 @@ set_pixel:
    add $a0, $a0, $t0 # &(pixel + 4*( x + y*256)
    sw  $a2, 0($a0) # joga a cor pro endereço
    jr  $ra
+   
 
-#checkWall(x, y, *grid)
-.globl checkWall
-#Pilha
+.globl check_wall
+#Pilha:
+
 #|-------| 32($sp)
 #|  $ra  |
 #|-------| 28($sp)
-#| Empty |
+#|  $s3  |
 #|-------| 24($sp)
 #|  $s2  |
 #|-------| 20($sp)
@@ -183,75 +246,95 @@ set_pixel:
 #|-------|  4($sp)
 #|  $a0  |
 #|-------|  0($sp)
-checkWall:
-	addi $sp, $sp, -32
-	sw $a0, 0($sp)
-	sw $a1, 4($sp)
-	sw $a2, 8($sp)
-	sw $s0, 12($sp)
-	sw $s1, 16($sp)
-	sw $s2, 20($sp)
-	sw $ra, 28($sp)
-	
-	div $t1, $a0, 7	  #gridPosX
-	div $t2, $a1, 7	  #gridPosY
-	mul $t1, $t1, 35  #Offset em x
-	add $t1, $t1, $t2 #gridArrayPos
-	add $t1, $t1, $a2 #gridTable[gridArrayPos]
-	lbu $t2, 0($t1)	  #$t2 = gridTable[gridArrayPos]
-	subi $t2, $t2, 64
-	bge $t2, 5, checkWallIfFalse
-checkWallIfTrue:
-	li $v0, 0 	# se n tiver parede, retorna 0
-	j checkWallExit
-checkWallIfFalse:
-	li $v0, 1	#se tiver parede, retorna 1
-checkWallExit:
-	lw $s0, 12($sp)
-	lw $s1, 16($sp)
-	lw $s2, 20($sp)
-	lw $ra, 28($sp)
-	
-	jr $ra
 
-.globl movePac
-#void movePac(char* grid, *mov)
-movePac:
+check_wall:
+addi $sp, $sp, -32
+sw $s0, 12($sp)
+sw $s1, 16($sp)
+sw $s2, 20($sp)
+sw $s3, 24($sp)
+sw $ra, 28($sp)
 
-	move $s0, $a0		#grid
-	move $s1, $a1		#mov
-movePac_while_move:
-	lw $s2, 4($s1)		#x	i=0 -> 140
-	lw $s3, 8($s1)		#y	i=0 -> 119
-	bge $s2, 256, movePac_stop
-	bge $s3, 256, movePac_stop
-	lw $s5, 12($s1)		#movX
-	lw $s4, 16($s1)		#movY
-	mul $t0, $s4, 7
-	mul $t1, $s5, 7
-	add $a0, $s2, $t0
-	add $a1, $s3, $t1
-	add $a2, $s0, $0
-	jal checkWall
-	bge $v0, 1, movePac_stop
-	li $s6, 0
-movePac_move:
-	bge $s6, 7, movePac_move_end
-	addi, $s6, $s6, 1
-	add $s2, $s2, $s4
-	add $s3, $s3, $s5
-	move $a0, $s3
-	move $a1, $s2
-	lw $a2, 0($s1)
-	jal draw_sprite
-	j movePac_move
 
-movePac_move_end:
-	sw $s2, 4($s1)
-	sw $s3, 8($s1)
-	j movePac_while_move
+
+mul $s0, $a1, 35            
+add $s1, $a0, $s0   
+add $s1, $s1, $a2 #calculando posição do vetor na grid
+lb $s0, 0($s1) 
+addi $s0, $s0, -64 #sprite id
+move $v0, $zero #assumindo que não tem parede
+
+
+beq $s0, 2, wall #fantasma
+blt $s0, 5,check_wall_end #paredes
+
+wall:
+addi $v0, $v0, 1 #tem parede
+  
+check_wall_end:
+lw $s0, 12($sp)
+lw $s1, 16($sp)
+lw $s2, 20($sp)
+lw $s3, 24($sp)
+lw $ra, 28($sp)
+addi $sp, $sp, 32     
+jr   $ra
+
+# check_score(*grid,*pacman) s0-> pacman, s1 -> grid
+.globl check_score
+check_score: #arrumar
+	addiu 	$sp, $sp, -24
+	sw    	$a0, 0($sp)
+	sw    	$a1, 4($sp)
+	sw    	$a2, 8($sp)
+	sw 	$s0, 12($sp)
+	sw 	$s1, 16($sp)
+  	sw    	$ra, 20($sp)
+  	
+  	li $v0,4
+  	la $a0, Pontuacao
+  	syscall
+  	
+  	
+  	lw	$t0, 0($s0)	#pos x pacman
+  	lw	$t1, 4($s0)	#pos y pacman
+  	
+  	div	$t0, $t0, 7
+  	mfhi	$t4
+  	div 	$t1, $t1, 7
+  	mfhi 	$t2
+  	add     $t4, $t2, $t4
+  	bnez    $t4, end #checando se não está no meio do sprite
+  	
+ 
+  	mul 	$t3, $t1, 35
+	add 	$t3, $t3, $t0
+  	add 	$t1, $s1, $0
+	add 	$t3, $t1, $t3
+	lb 	$t0, 0($t3) #calculando vetor na grid
 	
-movePac_stop:
-	sw $0, 12($s1)
-	sw $0, 16($s1)
-	j movePac_while_move
+	li 	$t2, 0x00 #zerando para não pontuar num possível retorno
+	sb   	$t2, 0($t3)
+	sub 	$t2, $t0, 64 #sprite id
+	bne 	$t2, 0, invenc		# comida
+   	addi 	$a1, $a1, 10
+   	j	end
+invenc:	bne 	$t2, 1, cereja		#invencibilidade
+   	addi    $a1, $a1, 50
+   	j	end
+cereja:	bne 	$t2, 4, end	# cereja
+	addi    $a1, $a1, 100
+   	 	
+end: 
+	move $a0, $a1
+	li $v0, 1
+	syscall
+	lw    	$a0, 0($sp)
+	lw    	$a1, 4($sp)
+	lw    	$a2, 8($sp)
+	lw 	$s0, 12($sp)
+	lw 	$s1, 16($sp)
+  	lw    	$ra, 20($sp)
+	addiu 	$sp, $sp, 24
+	jr  	$ra
+    
