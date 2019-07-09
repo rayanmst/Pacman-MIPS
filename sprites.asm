@@ -1,6 +1,6 @@
 .include "graphics.inc"
 .include "interrupt.inc"
-.include "macros.inc"
+.include "macros.asm"
 
 .data
 Pontuacao: .asciiz "\nPontuação:\n"
